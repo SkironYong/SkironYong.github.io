@@ -1,0 +1,242 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>深入理解Java虚拟机第三章—垃圾收集器 | SkironYong</title><meta name="description" content="判断对象是否存活 引用计数法：在对象中加一个引用计数器，被引用一次计数器值+1，失效计数器-1，减为0对象死亡。容易出现两个对象互相引用导致无法回收的问题  可达性分析：从一系列GC Roots的根对象为起始结点，从结点向下根据引用关系搜索。 固定可作为GC Roots的对象包括：  虚拟机栈(帧栈的本地变量表)中引用的对象 方法区中类静态属性引用的对象 本地方法栈JNI引用的对象 Class对象"><meta name="keywords" content="Java高级知识,垃圾收集器"><meta name="author" content="SkironYong"><meta name="copyright" content="SkironYong"><meta name="format-detection" content="telephone=no"><link rel="shortcut icon" href="/img/favicon.ico"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><meta name="twitter:card" content="summary"><meta name="twitter:title" content="深入理解Java虚拟机第三章—垃圾收集器"><meta name="twitter:description" content="判断对象是否存活 引用计数法：在对象中加一个引用计数器，被引用一次计数器值+1，失效计数器-1，减为0对象死亡。容易出现两个对象互相引用导致无法回收的问题  可达性分析：从一系列GC Roots的根对象为起始结点，从结点向下根据引用关系搜索。 固定可作为GC Roots的对象包括：  虚拟机栈(帧栈的本地变量表)中引用的对象 方法区中类静态属性引用的对象 本地方法栈JNI引用的对象 Class对象"><meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200413173643.jpg"><meta property="og:type" content="article"><meta property="og:title" content="深入理解Java虚拟机第三章—垃圾收集器"><meta property="og:url" content="https://skironyong.github.io/SkironYong.github.io/posts/3dc2e517.html"><meta property="og:site_name" content="SkironYong"><meta property="og:description" content="判断对象是否存活 引用计数法：在对象中加一个引用计数器，被引用一次计数器值+1，失效计数器-1，减为0对象死亡。容易出现两个对象互相引用导致无法回收的问题  可达性分析：从一系列GC Roots的根对象为起始结点，从结点向下根据引用关系搜索。 固定可作为GC Roots的对象包括：  虚拟机栈(帧栈的本地变量表)中引用的对象 方法区中类静态属性引用的对象 本地方法栈JNI引用的对象 Class对象"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200413173643.jpg"><meta property="article:published_time" content="2020-04-24T15:58:53.000Z"><meta property="article:modified_time" content="2020-04-24T16:19:29.819Z"><script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script><script><!-- hexo-inject:begin --><!-- hexo-inject:end -->var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode() 
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}</script><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><link rel="canonical" href="https://skironyong.github.io/SkironYong.github.io/posts/3dc2e517.html"><link rel="prev" title="深入理解Java虚拟机第七章—虚拟机类加载机制" href="https://skironyong.github.io/SkironYong.github.io/posts/2e913e33.html"><link rel="next" title="Butterfly主题折腾记录" href="https://skironyong.github.io/SkironYong.github.io/posts/ae32e687.html"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"search.xml","languages":{"hits_empty":"找不到您查询的内容:${query}"}},
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xxx/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  bookmark: {
+    message_prev: '按',
+    message_next: '键将本页加入书签'
+  },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: {"text":"本人,超帥","fontSize":"15px"},
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: true,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: false
+  
+}</script><script>var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isSidebar: true  
+  }</script><noscript><style>
+#page-header {
+  opacity: 1
+}
+.justified-gallery img{
+  opacity: 1
+}
+</style></noscript><meta name="generator" content="Hexo 4.2.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head><body><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="mobile_post_data"><div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">27</div></a></div></div><div class="mobile_data_item is-center">      <div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div><div class="length_num">17</div></a></div></div><div class="mobile_data_item is-center">     <div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div><div class="length_num">13</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div><div class="menus_item"><a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> List</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> 音乐</span></a></li><li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> 电影</span></a></li><li><a class="site-page" href="/books/"><i class="fa-fw fa fa-book"></i><span> 图书</span></a></li><li><a class="site-page" href="/gallery/"><i class="fa-fw fa fa-camera-retro"></i><span> 图库</span></a></li></ul></div></div></div></div><i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true">     </i><div id="sidebar"><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#判断对象是否存活"><span class="toc-number">1.</span> <span class="toc-text">判断对象是否存活</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#引用的类型"><span class="toc-number">2.</span> <span class="toc-text">引用的类型</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#方法区的回收"><span class="toc-number">3.</span> <span class="toc-text">方法区的回收</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#垃圾收集算法"><span class="toc-number">4.</span> <span class="toc-text">垃圾收集算法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#标记清除-Mark-Sweep-算法"><span class="toc-number">4.1.</span> <span class="toc-text">标记清除(Mark-Sweep)算法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#标记复制算法"><span class="toc-number">4.2.</span> <span class="toc-text">标记复制算法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#标记整理算法-老年代"><span class="toc-number">4.3.</span> <span class="toc-text">标记整理算法(老年代)</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#几种垃圾收集器"><span class="toc-number">5.</span> <span class="toc-text">几种垃圾收集器</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Serial收集器"><span class="toc-number">5.1.</span> <span class="toc-text">Serial收集器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ParNew收集器"><span class="toc-number">5.2.</span> <span class="toc-text">ParNew收集器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Paraller-Scavenge-收集器"><span class="toc-number">5.3.</span> <span class="toc-text">Paraller Scavenge 收集器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Serial-Old收集器"><span class="toc-number">5.4.</span> <span class="toc-text">Serial Old收集器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Parallel-Old收集器"><span class="toc-number">5.5.</span> <span class="toc-text">Parallel Old收集器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#CMS收集器"><span class="toc-number">5.6.</span> <span class="toc-text">CMS收集器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#G1收集器"><span class="toc-number">5.7.</span> <span class="toc-text">G1收集器</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#分区-Region"><span class="toc-number">5.7.1.</span> <span class="toc-text">分区 Region</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#卡片-Card"><span class="toc-number">5.7.2.</span> <span class="toc-text">卡片 Card</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Humongous区域"><span class="toc-number">5.7.3.</span> <span class="toc-text">Humongous区域</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#已记忆集合-Remember-Set"><span class="toc-number">5.7.4.</span> <span class="toc-text">已记忆集合 Remember Set</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#G1解决的3个问题"><span class="toc-number">5.7.5.</span> <span class="toc-text">G1解决的3个问题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#运行步骤"><span class="toc-number">5.8.</span> <span class="toc-text">运行步骤</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#几种概念解析"><span class="toc-number">6.</span> <span class="toc-text">几种概念解析</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#并发与并行"><span class="toc-number">6.1.</span> <span class="toc-text">并发与并行</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#原始快照算法"><span class="toc-number">6.2.</span> <span class="toc-text">原始快照算法</span></a></li></ol></li></ol></div></div></div><div id="body-wrap"><div class="post-bg" id="nav" style="background-image: url(https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200413173643.jpg)"><div id="page-header"><span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">SkironYong</a></span><span class="pull_right menus"><div id="search_button"><a class="site-page social-icon search"><i class="fa fa-search fa-fw"></i><span> 搜索</span></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div><div class="menus_item"><a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> List</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> 音乐</span></a></li><li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> 电影</span></a></li><li><a class="site-page" href="/books/"><i class="fa-fw fa fa-book"></i><span> 图书</span></a></li><li><a class="site-page" href="/gallery/"><i class="fa-fw fa fa-camera-retro"></i><span> 图库</span></a></li></ul></div></div><span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span></span></div><div id="post-info"><div id="post-title"><div class="posttitle">深入理解Java虚拟机第三章—垃圾收集器</div></div><div id="post-meta"><div class="meta-firstline"><time class="post-meta__date"><span class="post-meta__date-created" title="发表于 2020-04-24 23:58:53"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2020-04-24</span><span class="post-meta__separator">|</span><span class="post-meta__date-updated" title="更新于 2020-04-25 00:19:29"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2020-04-25</span></time><span class="post-meta__categories"><span class="post-meta__separator">|</span><i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i><a class="post-meta__categories" href="/categories/JavaSE%E9%83%A8%E5%88%86/">JavaSE部分</a><i class="fa fa-angle-right post-meta__separator" aria-hidden="true"></i><i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i><a class="post-meta__categories" href="/categories/JavaSE%E9%83%A8%E5%88%86/JVM/">JVM</a></span></div><div class="meta-secondline"> <span class="post-meta-wordcount"><i class="post-meta__icon fa fa-file-word-o" aria-hidden="true"></i><span>字数总计:</span><span class="word-count">2.8k</span><span class="post-meta__separator">|</span><i class="post-meta__icon fa fa-clock-o" aria-hidden="true"></i><span>阅读时长: 8 分钟</span></span></div><div class="meta-thirdline"><span class="post-meta-pv-cv"><span class="post-meta__separator">|</span><i class="fa fa-eye post-meta__icon" aria-hidden="true"> </i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span><span class="post-meta-commentcount"><span class="post-meta__separator">|</span><i class="post-meta__icon fa fa-comment-o" aria-hidden="true"></i><span>评论数:</span><a href="/posts/3dc2e517.html#post-comment" itemprop="discussionUrl"><span class="valine-comment-count comment-count" data-xid="/posts/3dc2e517.html" itemprop="commentCount"></span></a></span></div></div></div></div><main class="layout_post" id="content-inner"><article id="post"><div id="article-container"><h1 id="判断对象是否存活"><a href="#判断对象是否存活" class="headerlink" title="判断对象是否存活"></a>判断对象是否存活</h1><ul>
+<!-- hexo-inject:begin --><!-- hexo-inject:end --><li><p>引用计数法：在对象中加一个引用计数器，被引用一次计数器值+1，失效计数器-1，减为0对象死亡。容易出现两个对象互相引用导致无法回收的问题</p>
+</li>
+<li><p>可达性分析：从一系列GC Roots的根对象为起始结点，从结点向下根据引用关系搜索。</p>
+<p>固定可作为GC Roots的对象包括：</p>
+<ol>
+<li>虚拟机栈(帧栈的本地变量表)中引用的对象</li>
+<li>方法区中类静态属性引用的对象</li>
+<li>本地方法栈JNI引用的对象</li>
+<li>Class对象</li>
+</ol>
+</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Person</span></span>&#123;</span><br><span class="line">	</span><br><span class="line">&#125;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Test</span></span>&#123;</span><br><span class="line">	<span class="keyword">static</span> Person a = <span class="keyword">new</span> Person();	<span class="comment">//方法区中类的静态属性引用的对象</span></span><br><span class="line">	<span class="keyword">static</span> <span class="keyword">final</span> String s = <span class="string">"abc"</span>;	<span class="comment">//方法区中常量引用的对象</span></span><br><span class="line">	Person b = <span class="keyword">new</span> Person();        <span class="comment">//栈中本地方法表引用的对象</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="引用的类型"><a href="#引用的类型" class="headerlink" title="引用的类型"></a>引用的类型</h1><p><strong>强引用：</strong> Object obj = new Object()类似 永远不会回收掉</p>
+<p><strong>软引用：</strong>非必须对象。在系统要发生内存溢出异常前，会对这些对象进行回收，如果还没有足够的内存，才会抛出内存溢出异常。 SoftReference类来实现软引用</p>
+<p><strong>弱引用：</strong>非必须对象。被弱引用对象只能生存到下一次垃圾收集发生为止。WeakReference类来实现弱引用。</p>
+<p><strong>虚引用：</strong>是最弱的一种引用关系，无法通过虚引用获取一个对象实例，唯一目的就是在这个对象被回收时收到一个系统通知。</p>
+<h1 id="方法区的回收"><a href="#方法区的回收" class="headerlink" title="方法区的回收"></a>方法区的回收</h1><p>方法区主要存放永久代的对象，而永久性对象的回收率比新生代低很多，性价比不高。</p>
+<p>方法区主要对<strong>常量池回收</strong>、<strong>类的卸载</strong></p>
+<p>满足三个条件才对类进行卸载：</p>
+<ul>
+<li>类的所有实例已经被回收</li>
+<li>加载该类的类加载器已经被回收</li>
+<li>该类对应的java.lang.Class对象没有在任何地方被引用</li>
+</ul>
+<p><strong>finalize()方法</strong>(已不推荐使用)：</p>
+<p>一个对象被判断为死亡要至少经过两次标记：</p>
+<p>第一次是在可达性分析后发现没有与GC Roots相连的引用链，这是第一次标记。随后对这些对象进行一些筛选，看是否有必要执行finalize方法。筛选的条件是：对象是否覆盖finalize()方法或者finalize（）方法已被调用过一次。</p>
+<p>需要执行finalize方法的对象被装入F-Queue队列中，在finalize方法中只要该对象重新与引用链上对象关联，就实现了自我拯救，在第二次标记时被移除队列。</p>
+<h1 id="垃圾收集算法"><a href="#垃圾收集算法" class="headerlink" title="垃圾收集算法"></a>垃圾收集算法</h1><p>首先根据对象的存活周期不同，内存分为几部分：</p>
+<p><img src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200424150737.png" alt></p>
+<h2 id="标记清除-Mark-Sweep-算法"><a href="#标记清除-Mark-Sweep-算法" class="headerlink" title="标记清除(Mark-Sweep)算法"></a>标记清除(Mark-Sweep)算法</h2><p>最基础的算法是标记清除算法，整个算法分为两个阶段：标记、清除。</p>
+<p>首先标记所有需要回收对象，然后标记完成后，统一回收。</p>
+<p>缺点是：</p>
+<ul>
+<li>执行效率不稳定：如果有大量对象要回收效率降低</li>
+<li>内存空间碎片化</li>
+</ul>
+<h2 id="标记复制算法"><a href="#标记复制算法" class="headerlink" title="标记复制算法"></a>标记复制算法</h2><p>主要思想是将内存分为相等两块，当一块内存用完了，将还存活的对象复制到另一块上面，再把已使用过的内存空间一次清理掉。</p>
+<p>由于新生代对象具有”朝生夕灭”的特点，虚拟机将内存空间分为一块较大的Eden空间和两块较小的Survivor空间，默认比例是8:1</p>
+<p>每次垃圾收集只使用Eden和其中一块Survivor，将活着的对象复制到另一块Survivor上面。</p>
+<p><code>PS:</code>如果每次回收活着的对象超过10%怎么办？</p>
+<p>答：有一个逃生门设计：当Survivor空间不足以容纳存活对象时，这些对象通过<code>分配担保机制</code>直接进入老年代</p>
+<h2 id="标记整理算法-老年代"><a href="#标记整理算法-老年代" class="headerlink" title="标记整理算法(老年代)"></a>标记整理算法(老年代)</h2><p>标记整理算法区别与标记复制算法，因为老年代存活的对象很多，复制算法不适合这种情况。</p>
+<p>标记阶段和’标记-清除’算法一致，之后将所有活的对象都向内存一段移动（这种移动对象必须全程暂停用户程序，被称为“stop the world”）</p>
+<p>缺点：</p>
+<ul>
+<li>移动对象内存回收效率变低</li>
+</ul>
+<p>移动对象整个垃圾回收停顿时间⬆,延迟增加，但吞吐量⬆</p>
+<p>不移动对象停顿时间⬇,延迟减小，但吞吐量⬇</p>
+<h1 id="几种垃圾收集器"><a href="#几种垃圾收集器" class="headerlink" title="几种垃圾收集器"></a>几种垃圾收集器</h1><p><img src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200424162002.png" alt></p>
+<h2 id="Serial收集器"><a href="#Serial收集器" class="headerlink" title="Serial收集器"></a>Serial收集器</h2><p>Serial （新生代）/ Serial Old （老年代）：</p>
+<p><img src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200424161922.jpg" alt></p>
+<ul>
+<li>新生代收集器</li>
+<li>复制算法</li>
+<li>单线程，垃圾收集时暂停应用程序</li>
+<li>与Serial Old收集器组合</li>
+<li>一般运行在客户端，部分微服务领域没有过多线程交互</li>
+</ul>
+<h2 id="ParNew收集器"><a href="#ParNew收集器" class="headerlink" title="ParNew收集器"></a>ParNew收集器</h2><p>ParNew （新生代）/ CMS（老年代）</p>
+<p><img src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200424162546.png" alt></p>
+<p>是Serial的多线程并行版本</p>
+<ul>
+<li>新生代收集器</li>
+<li>复制算法</li>
+<li>目前唯一与CMS收集器配合的</li>
+<li>运行在服务器端</li>
+</ul>
+<h2 id="Paraller-Scavenge-收集器"><a href="#Paraller-Scavenge-收集器" class="headerlink" title="Paraller Scavenge 收集器"></a>Paraller Scavenge 收集器</h2><p>是一款专注于吞吐量的新生代收集器</p>
+<p>吞吐量：<br>$$<br>吞吐量 = {运行用户代码时间 \over 运行用户代码时间+垃圾收集时间}<br>$$<br>提供两个参数来精确控制吞吐量：</p>
+<p>最大垃圾收集停顿时间 <code>-XX:MaxGCPauseMillis</code>、吞吐量大小 <code>-XX:GCTimeTatio</code></p>
+<p>最大垃圾收集停顿时间不是越小垃圾收集的就越快，它是以牺牲吞吐量和新生代空间。</p>
+<p>Paraller Scavenge收集器还有一个开关参数 <code>-XX:+UseAdaptiveSizePolicy</code>，它可以自适应调节新生代大小、Eden与Survivor比例、老年代对象大小等</p>
+<hr>
+<h2 id="Serial-Old收集器"><a href="#Serial-Old收集器" class="headerlink" title="Serial Old收集器"></a>Serial Old收集器</h2><ul>
+<li>Serial的老年代版本</li>
+<li>标记-整理算法</li>
+<li>运行在客户端</li>
+</ul>
+<h2 id="Parallel-Old收集器"><a href="#Parallel-Old收集器" class="headerlink" title="Parallel Old收集器"></a>Parallel Old收集器</h2><ul>
+<li>Parallel Scavenge 的老年代版本</li>
+<li>标记-整理算法</li>
+<li>与Parallel Scavenge配合，以’吞吐量优先’</li>
+<li>运行在服务器端，保证吞吐量</li>
+</ul>
+<h2 id="CMS收集器"><a href="#CMS收集器" class="headerlink" title="CMS收集器"></a>CMS收集器</h2><p>CMS(Concurrent Mark Sweep)是以<strong>获取最短回收停顿时间</strong>为目标的收集器，与ParNew收集器配合。</p>
+<p>它基于标记-清除算法，包含几个步骤：</p>
+<ul>
+<li><p>初始标记：仅仅只是标记一下 GC Roots 能直接关联到的对象，速度很快，需要停顿。</p>
+</li>
+<li><p>并发标记：从GC Roots能关联到的对象开始遍历整个对象图</p>
+</li>
+<li><p>重新标记：修正并发标记阶段用户程序运行导致标记变动的记录</p>
+</li>
+<li><p>并发清除：清除掉标记阶段判定已死亡的对象</p>
+</li>
+</ul>
+<p><img src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200424172438.png" alt></p>
+<p>缺点：</p>
+<ul>
+<li>并发阶段，虽然不会导致用户线程停顿，但却占用一部分线程导致应用程序变慢，降低总吞吐量</li>
+<li>无法处理<code>浮动垃圾</code>(存在于并发阶段程序额外产生的垃圾)，可能预留的内存不够存放浮动垃圾，导致<code>并发失败</code>进而导致Full GC的产生，这时虚拟机会临时启用Serial Old 代替CMS</li>
+<li>标记-清除算法导致的空间碎片，往往出现老年代空间剩余，但无法找到足够大连续空间来分配当前对象，不得不提前触发一次 Full GC。</li>
+</ul>
+<h2 id="G1收集器"><a href="#G1收集器" class="headerlink" title="G1收集器"></a>G1收集器</h2><p>G1收集器是垃圾收集器技术的里程碑式结果，在JDK9发布之时，G1宣告成为服务器端的默认垃圾收集器，目的是取代CMS收集器</p>
+<p>G1设计的初衷是要一款能够建立<code>可预测的停顿时间模型</code>，意思是能支持指定在一个时间片内进行垃圾收集。</p>
+<p>G1不再像其他垃圾收集器只收集新生代(Minor GC)或者只收集老年代(Major GC)或者整个堆全部收集(Full GC)，而是采用Mixed GC模式，哪块内存中垃圾数量多，回收收益大就收集。</p>
+<p>G1收集器是追踪各个Region里面垃圾堆积的’价值’大小，价值即回收所获得的空间大小以及回收所需时间的经验值，然后维护一个优先级列表，每次根据用户设定允许的收集停顿时间(通过<code>-XX:MaxGCPauseMillis</code>指定)，优先处理回收价值最大的Region</p>
+<p><img src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200424204622.png" alt></p>
+<h3 id="分区-Region"><a href="#分区-Region" class="headerlink" title="分区 Region"></a>分区 Region</h3><p>G1采用了分区的思路，将整个堆空间分成若干个大小相等的内存区域，每个内存区域可以根据需要，扮演新生代Eden空间，Survivor空间或者老年代空间。并不要求对象的存储一定是物理上的连续，只要逻辑上连续即可</p>
+<h3 id="卡片-Card"><a href="#卡片-Card" class="headerlink" title="卡片 Card"></a>卡片 Card</h3><p>在每个分区内部又被分成若干大小512 Byte卡片(Card),标识堆内存最小可用粒度所有分区的卡片会记录在 全局卡片表(Global Card Table)中，分配的对象会在物理上占用连续若干个卡片</p>
+<h3 id="Humongous区域"><a href="#Humongous区域" class="headerlink" title="Humongous区域"></a>Humongous区域</h3><p>Humongous区域专门用来存储大对象（超过了一个Region容量一半的对象），如果超过了整个Region容量的超级大对象，会被存放在N个连续Humongous区域中，Humongous Region被当作老年代的一部分</p>
+<h3 id="已记忆集合-Remember-Set"><a href="#已记忆集合-Remember-Set" class="headerlink" title="已记忆集合 Remember Set"></a>已记忆集合 Remember Set</h3><p>每个Region都维护一个自己的记忆集RSet，这些记忆集内部类似一个反向指针，记录别的Region指向自己的指针，并标记分别在哪些卡页范围内。</p>
+<h3 id="G1解决的3个问题"><a href="#G1解决的3个问题" class="headerlink" title="G1解决的3个问题"></a>G1解决的3个问题</h3><ul>
+<li><p>对象跨Reigon(代)引用问题：</p>
+<p>假设进行一次只局限于新生代区域内的收集，但新生代中的对象很可能被老年代所引用，为了找出老年代中存活对象，必须还要额外遍历整个老年代中所有对象保证可达性结果的正确，增加很多内存负担。</p>
+<p><strong>解决方案：</strong>每个Reigon区域维持记忆集，避免扫描所有区域</p>
+</li>
+<li><p>并发标记阶段如何保证收集线程和用户线程互不干扰？</p>
+<p>并发标记阶段时用户线程会改变对象引用关系，但必须保证原本的对象图不能被打破，导致标记出错。</p>
+<p><strong>解决方案：</strong>CMS采用增量更新算法实现，而G1收集器采用<a href="#原始快照算法">原始快照(SATB)算法</a>实现。此外，G1为每一个Region设计两个名为TAMS（Top at Mark Start）的指针，把Region中的一部分空间划分出来用于并发回收过程中新对象的分配，并发回收时新分配对象地址要在两个指针位置以上</p>
+</li>
+</ul>
+<h2 id="运行步骤"><a href="#运行步骤" class="headerlink" title="运行步骤"></a>运行步骤</h2><p><img src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200424232822.png" alt></p>
+<ul>
+<li>初始标记：标记GC Roots能直接关联到的对象，并修改TAMS指针的值</li>
+<li>并发标记：扫描对象图，之后重新处理SATB记录下的有引用变动的对象</li>
+<li>最终标记：对用户线程短暂暂停，处理最后少量的SATB记录</li>
+<li>筛选回收：根据用户期望停顿时间来制定回收计划，将存活对象复制到空的Region中，再清理掉旧Region全部空间</li>
+</ul>
+<h1 id="几种概念解析"><a href="#几种概念解析" class="headerlink" title="几种概念解析"></a>几种概念解析</h1><h2 id="并发与并行"><a href="#并发与并行" class="headerlink" title="并发与并行"></a>并发与并行</h2><p><strong>并行：</strong>描述的是多条垃圾收集器线程之间的关系。指同一时间有多条线程在协同工作</p>
+<p><strong>并发：</strong>描述的是垃圾收集器与用户线程之间的关系。指同一时间垃圾收集器线程与用户线程都在运行</p>
+<h2 id="原始快照算法"><a href="#原始快照算法" class="headerlink" title="原始快照算法"></a><a name="原始快照算法">原始快照算法</a></h2></div><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">SkironYong</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="https://skironyong.github.io/SkironYong.github.io/posts/3dc2e517.html">https://skironyong.github.io/SkironYong.github.io/posts/3dc2e517.html</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://skironyong.github.io/SkironYong.github.io" target="_blank">SkironYong</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Java%E9%AB%98%E7%BA%A7%E7%9F%A5%E8%AF%86/">Java高级知识</a><a class="post-meta__tags" href="/tags/%E5%9E%83%E5%9C%BE%E6%94%B6%E9%9B%86%E5%99%A8/">垃圾收集器</a></div><div class="post_share"><div class="social-share" data-image="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200604161340.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css"/><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js"></script></div></div><div class="post-reward"><a class="reward-button button--primary button--animated"> <i class="fa fa-qrcode"></i> 打赏<div class="reward-main"><ul class="reward-all"><li class="reward-item"><img class="lazyload post-qr-code__img" src="/img/wechat.jpg" alt="微信"/><div class="post-qr-code__desc">微信</div></li><li class="reward-item"><img class="lazyload post-qr-code__img" src="/img/alipay.jpg" alt="支付寶"/><div class="post-qr-code__desc">支付寶</div></li></ul></div></a></div><nav class="pagination_post" id="pagination"><div class="prev-post pull_left"><a href="/posts/2e913e33.html"><img class="prev_cover" src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200413173643.jpg" onerror="onerror=null;src='undefined'"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">深入理解Java虚拟机第七章—虚拟机类加载机制</div></div></a></div><div class="next-post pull_right"><a href="/posts/ae32e687.html"><img class="next_cover" src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200416001656.png" onerror="onerror=null;src='undefined'"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">Butterfly主题折腾记录</div></div></a></div></nav><div class="relatedPosts"><div class="relatedPosts_headline"><i class="fa fa-fw fa-thumbs-up" aria-hidden="true"></i><span> 相关推荐</span></div><div class="relatedPosts_list"><div class="relatedPosts_item"><a href="/posts/2e913e33.html" title="深入理解Java虚拟机第七章—虚拟机类加载机制"><img class="relatedPosts_cover "src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200413173643.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="fa fa-calendar fa-fw" aria-hidden="true"></i> 2020-05-05</div><div class="relatedPosts_title">深入理解Java虚拟机第七章—虚拟机类加载机制</div></div></a></div><div class="relatedPosts_item"><a href="/posts/e614237b.html" title="深入理解Java虚拟机第二章—JVM内存结构"><img class="relatedPosts_cover "src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200413173643.jpg"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="fa fa-calendar fa-fw" aria-hidden="true"></i> 2020-04-13</div><div class="relatedPosts_title">深入理解Java虚拟机第二章—JVM内存结构</div></div></a></div><div class="relatedPosts_item"><a href="/posts/3d3b131f.html" title="Java高并发Synchronized"><img class="relatedPosts_cover "src="https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200406200959.png"><div class="relatedPosts_main is-center"><div class="relatedPosts_date"><i class="fa fa-calendar fa-fw" aria-hidden="true"></i> 2020-03-18</div><div class="relatedPosts_title">Java高并发Synchronized</div></div></a></div></div><div class="clear_both"></div></div><hr><div id="post-comment"><div class="comment_headling"><i class="fa fa-comments fa-fw" aria-hidden="true"></i><span> 评论</span></div><div class="vcomment" id="vcomment"></div><script src="https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js"></script><script>var GUEST_INFO = ['nick','mail','link'];
+var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+  return GUEST_INFO.indexOf(item) > -1
+});
+guest_info = guest_info.length == 0 ? GUEST_INFO :guest_info;
+
+window.valine = new Valine({
+  el:'#vcomment',
+  appId: 'IRUfN9iVHLBGKtLYCkfHP4Iz-gzGzoHsz',
+  appKey: '1XObAXtfulNqntVKck7dqWdc',
+  placeholder: 'ヾﾉ≧∀≦)o来啊，快活啊!',
+  avatar: 'monsterid',
+  meta: guest_info,
+  pageSize: '10',
+  lang: 'en',
+  recordIP: false,
+  serverURLs: '',
+  mathjax: false
+});</script></div></article></main><footer id="footer" style="background-image: url(https://cdn.jsdelivr.net/gh/SkironYong/skironImgs/img/20200413173643.jpg)" data-type="photo"><div id="footer-wrap"><div class="copyright">&copy;2020 By SkironYong</div><div class="framework-info"><span>驱动 </span><a href="https://hexo.io" target="_blank" rel="noopener"><span>Hexo</span></a><span class="footer-separator">|</span><span>主题 </span><a href="https://github.com/jerryc127/hexo-theme-butterfly" target="_blank" rel="noopener"><span>Butterfly</span></a></div><div class="footer_custom_text">Welcome to my <a href="http://skiron.xyz/" target="_blank" rel="noopener">blog</a>!</div></div></footer></div><section class="rightside" id="rightside"><div id="rightside-config-hide"><i class="fa fa-book" id="readmode" title="阅读模式"></i><i class="fa fa-plus" id="font_plus" title="放大字体"></i><i class="fa fa-minus" id="font_minus" title="缩小字体"></i><a class="translate_chn_to_cht" id="translateLink" href="javascript:translatePage();" title="简繁转换" target="_self">繁</a><i class="darkmode fa fa-moon-o" id="darkmode" title="夜间模式"></i></div><div id="rightside-config-show"><div id="rightside_config" title="设置"><i class="fa fa-cog" aria-hidden="true"></i></div><a id="to_comment" href="#post-comment" title="直达评论"><i class="scroll_to_comment fa fa-comments">  </i></a><i class="fa fa-list-ul close" id="mobile-toc-button" title="目录" aria-hidden="true"></i><i class="fa fa-arrow-up" id="go-up" title="回到顶部" aria-hidden="true"></i></div></section><div class="search-dialog" id="local-search"><div class="search-dialog__title" id="local-search-title">本地搜索</div><div id="local-input-panel"><div id="local-search-input"><div class="local-search-box"><input class="local-search-box--input" placeholder="搜索文章" type="text"/></div></div></div><hr/><div id="local-search-results"><div id="local-hits"></div><div id="local-stats"><div class="local-search-stats__hr" id="hr"><span>由</span> <a href="https://github.com/wzpan/hexo-generator-search" target="_blank" rel="noopener" style="color:#49B1F5;">hexo-generator-search</a>
+ <span>提供支持</span></div></div></div><span class="search-close-button"><i class="fa fa-times"></i></span></div><div class="search-mask"></div><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="/js/tw_cn.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script id="ribbon_piao" mobile="false" src="/js/third-party/piao.js"></script><script src="/js/third-party/activate-power-mode.js"></script><script>POWERMODE.colorful = true;
+POWERMODE.shake = false;
+document.body.addEventListener('input', POWERMODE);
+</script><script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@latest/instantpage.min.js" type="module"></script><script src="/js/third-party/ClickShowText.js"></script><script src="/js/search/local-search.js"></script><script src="/js/calendar.js"></script><script src="/js/languages.js"></script><!-- hexo-inject:begin --><!-- hexo-inject:end --></body></html>
