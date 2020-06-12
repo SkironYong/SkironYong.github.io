@@ -4,6 +4,31 @@
   
     
     <entry>
+      <title>阿里巴巴菜鸟一面后端Java岗</title>
+      <link href="/posts/afa08dcd.html"/>
+      <url>/posts/afa08dcd.html</url>
+      
+        <content type="html"><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><script class="meting-secondary-script-marker" src="\assets\js\Meting.min.js"></script><p>6.10号上午收到菜鸟（不是说的是我么）网络运输配送技术部java岗电话面试请求，晚上面试可能还在办公室还是比较吵，整体来说体验很好，很放松，都说阿里比较看重项目，自己的两个项目有点看不上眼，（做了秒杀完全是挖坑给自己），也没有算法比赛..:weary:全程30分钟</p><ol><li>我说了句有博客，面试官问我怎么没写博客地址（原来地址还要写上去啊）</li><li>问我秒杀项目涉及有什么问题？秒杀涉及哪些锁</li><li>秒杀系统是单机系统还是分布式系统？秒杀支持多少流量</li><li>系统要实现什么功能来保证秒杀下单实现用户的利益</li><li>描述用户下单前后台整体流程</li><li>有其他人来体验一下系统吗（无）</li><li>问了实验室有哪些项目，java是自学的？</li><li>Java基础知识（回答了HashMap、HashTable、ConcurrentHashMap）</li><li>事务的隔离级别</li><li>死锁怎么产生？</li></ol><blockquote><ol><li><p>互斥条件</p></li><li><p>不可剥夺</p></li><li><p>请求和保持</p></li><li><p>循环等待</p></li></ol></blockquote><ol start="11"><li><p>双向循环链表</p></li><li><p>二叉树和平衡二叉树优缺点</p></li><li><p>如何根据词频统计高频词汇？</p></li><li><p>讲一下自己的优缺点和其他人区别？</p></li></ol>]]></content>
+      
+      
+      <categories>
+          
+          <category> 随笔 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 面经 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>带你搞定阿里云Ubuntu版本配置Java环境JDK+MySQL+Tomcat</title>
       <link href="/posts/c41f048f.html"/>
       <url>/posts/c41f048f.html</url>
